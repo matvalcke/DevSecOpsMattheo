@@ -1,0 +1,77 @@
+name: Symfony CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.2
+
+    - name: Install Composer dependencies
+      run: composer install --no-interaction --prefer-dist
+
+    - name: Install Symfony Runtime
+      run: composer require symfony/runtime --no-plugins --no-scripts
+
+    - name: Create composer.json file if not exists
+      run: |
+        if [ ! -f composer.json ]; then
+          echo '{"require": {"symfony/runtime": "^5.0"}}' > composer.json
+        fi
+
+    - name: Verify composer.json
+      run: cat composer.json
+
+  tests:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Verify security of dependencies
+      run: |
+        if [ ! -f composer.json ]; then
+          echo '{"require": {"symfony/runtime": "^5.0"}}' > composer.json
+        fi
+        composer audit
+
+    # Ne fonctionne pas
+    # - name: Check code quality
+    #   run: |
+    #     composer require --dev friendsofphp/php-cs-fixer
+    #     php vendor/bin/php-cs-fixer fix --dry-run --diff --diff-format=udiff
+
+  docker:
+    runs-on: ubuntu-latest
+    
+    needs: tests
+    
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+
+  # Si Docker est utilisé et fonctionne correctement
+    # - name: Build and push Docker image
+    #   run: |
+    #     docker-compose build
+    #     docker-compose push
+    
+    # - name: Verify Docker image security
+    #   run: docker scan image-name
+
+    # - name: Create database and run migrations
+    #   run: docker-compose up -d --build && docker-compose exec -T web php bin/console doctrine:migrations:migrate --no-interaction 
